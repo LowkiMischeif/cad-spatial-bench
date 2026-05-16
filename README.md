@@ -71,6 +71,19 @@ The evaluator matches records by `sample_id` and reports:
 - mean absolute error for each numeric parameter
 - overall mean absolute parameter error
 
+## Synthetic Text Roadmap
+
+The package includes deterministic prompt templates in
+`cad_spatial_bench.synthetic_text`. These templates convert a dataset record into:
+
+- a direct CAD specification prompt
+- a spatial reasoning question
+- an instruction-following benchmark prompt
+
+The current templates do not call external APIs. Later, Nemotron can be added as
+an optional prompt-variation step, but deterministic Build123d records should
+remain the source of ground truth.
+
 ## Current Status
 
 This first milestone generates metadata for rectangular plate samples. A later

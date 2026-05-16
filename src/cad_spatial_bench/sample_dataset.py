@@ -8,6 +8,8 @@ import random
 from pathlib import Path
 from typing import Any
 
+from cad_spatial_bench.generators import build_rectangular_plate, export_part_to_step
+
 
 def sample_plate_params(rng: random.Random) -> dict[str, Any]:
     """Sample deterministic plate parameters from a provided RNG."""
@@ -34,6 +36,14 @@ def build_record(sample_index: int, rng: random.Random) -> dict[str, Any]:
     }
 
 
+def export_step_for_record(record: dict[str, Any], export_step_dir: Path) -> None:
+    """Export a STEP file for a record and store its path in the record."""
+    step_path = export_step_dir / f"{record['sample_id']}.step"
+    part = build_rectangular_plate(record["parameters"])
+    exported_path = export_part_to_step(part, step_path)
+    record["step_file_path"] = str(exported_path)
+
+
 def write_jsonl(records: list[dict[str, Any]], output_path: Path) -> None:
     """Write records to a JSONL file."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -51,6 +61,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-samples", type=int, default=10)
     parser.add_argument("--output", type=Path, default=Path("outputs/sample_dataset.jsonl"))
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--export-step-dir",
+        type=Path,
+        default=None,
+        help="Optional directory where one STEP file per sample will be written.",
+    )
     return parser.parse_args()
 
 
@@ -59,6 +75,11 @@ def main() -> None:
     args = parse_args()
     rng = random.Random(args.seed)
     records = [build_record(index, rng) for index in range(args.num_samples)]
+
+    if args.export_step_dir is not None:
+        for record in records:
+            export_step_for_record(record, args.export_step_dir)
+
     write_jsonl(records, args.output)
     print(f"Wrote {len(records)} records to {args.output}")
 

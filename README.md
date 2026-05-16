@@ -40,12 +40,20 @@ Run the JSONL sampling CLI:
 python -m cad_spatial_bench.sample_dataset --num-samples 25 --output outputs/plates.jsonl --seed 42
 ```
 
+To also export one STEP file per generated sample, pass `--export-step-dir`:
+
+```powershell
+python -m cad_spatial_bench.sample_dataset --num-samples 25 --output outputs/plates.jsonl --seed 42 --export-step-dir outputs/step
+```
+
 Each JSONL record includes:
 
 - `sample_id`
 - `part_family`
 - `parameters`
 - `target_python_function`
+
+When `--export-step-dir` is provided, each record also includes `step_file_path`.
 
 The same seed produces the same records, which makes the benchmark reproducible.
 

@@ -57,6 +57,20 @@ When `--export-step-dir` is provided, each record also includes `step_file_path`
 
 The same seed produces the same records, which makes the benchmark reproducible.
 
+## Evaluation
+
+Compare a ground-truth JSONL file with a candidate JSONL file:
+
+```powershell
+python -m cad_spatial_bench.evaluate --ground-truth outputs/plates.jsonl --candidate outputs/candidate.jsonl
+```
+
+The evaluator matches records by `sample_id` and reports:
+
+- exact-match accuracy for `part_family`
+- mean absolute error for each numeric parameter
+- overall mean absolute parameter error
+
 ## Current Status
 
 This first milestone generates metadata for rectangular plate samples. A later

@@ -110,10 +110,12 @@ def evaluate_records(
     structured_exact_matches = 0
     structured_correct_fields = 0
     structured_total_fields = 0
+    subtype_scores: dict[str, dict[str, int]] = {}
 
     for sample_id in matched_ids:
         ground_truth = ground_truth_by_id[sample_id]
         candidate = candidate_by_id[sample_id]
+        task_subtype = str(ground_truth.get("task_subtype", "unknown"))
 
         if ground_truth.get("part_family") == candidate.get("part_family"):
             part_family_matches += 1
@@ -127,8 +129,16 @@ def evaluate_records(
             structured_answer_count += 1
             structured_correct_fields += correct_fields
             structured_total_fields += total_fields
+            subtype_entry = subtype_scores.setdefault(
+                task_subtype,
+                {"count": 0, "exact": 0, "correct_fields": 0, "total_fields": 0},
+            )
+            subtype_entry["count"] += 1
+            subtype_entry["correct_fields"] += correct_fields
+            subtype_entry["total_fields"] += total_fields
             if exact_match:
                 structured_exact_matches += 1
+                subtype_entry["exact"] += 1
 
     all_parameter_errors = [
         error for errors_for_parameter in parameter_errors.values() for error in errors_for_parameter
@@ -157,6 +167,18 @@ def evaluate_records(
         "structured_field_accuracy": (
             structured_correct_fields / structured_total_fields if structured_total_fields else 0.0
         ),
+        "subtype_metrics": {
+            subtype: {
+                "count": scores["count"],
+                "exact_accuracy": scores["exact"] / scores["count"] if scores["count"] else 0.0,
+                "field_accuracy": (
+                    scores["correct_fields"] / scores["total_fields"]
+                    if scores["total_fields"]
+                    else 0.0
+                ),
+            }
+            for subtype, scores in sorted(subtype_scores.items())
+        },
     }
 
 
@@ -190,6 +212,17 @@ def print_summary(results: dict[str, Any]) -> None:
     print(f"- Exact matches:      {results['structured_exact_matches']}")
     print(f"- Exact accuracy:     {results['structured_exact_accuracy']:.3f}")
     print(f"- Field accuracy:     {results['structured_field_accuracy']:.3f}")
+
+    subtype_metrics = results["subtype_metrics"]
+    if subtype_metrics:
+        print()
+        print("Subtype structured scoring:")
+        for subtype, metrics in subtype_metrics.items():
+            print(
+                f"- {subtype}: count={metrics['count']}, "
+                f"exact={metrics['exact_accuracy']:.3f}, "
+                f"field={metrics['field_accuracy']:.3f}"
+            )
 
 
 def parse_args() -> argparse.Namespace:

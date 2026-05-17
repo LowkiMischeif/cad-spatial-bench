@@ -46,6 +46,12 @@ Generate the first vision benchmark dataset with deterministic PNG renders:
 python -m cad_spatial_bench.sample_dataset --num-samples 25 --output outputs/vision_dataset.jsonl --seed 42 --render-dir outputs/renders
 ```
 
+Generate harder spatial reasoning tasks:
+
+```powershell
+python -m cad_spatial_bench.sample_dataset --num-samples 100 --output outputs/hard_vision_dataset.jsonl --seed 42 --render-dir outputs/renders --task-suite hard
+```
+
 To also export one STEP file per generated sample, pass `--export-step-dir`:
 
 ```powershell
@@ -57,6 +63,9 @@ Each JSONL record includes:
 - `sample_id`
 - `split`
 - `part_family`
+- `task_family`
+- `task_subtype`
+- `difficulty`
 - `parameters`
 - `target_python_function`
 - `prompt`
@@ -66,6 +75,19 @@ When `--export-step-dir` is provided, each record also includes `step_file_path`
 When `--render-dir` is provided, each record also includes `image_path`.
 
 The same seed produces the same records, which makes the benchmark reproducible.
+
+## Spatial Reasoning Task Suites
+
+The default `basic` suite preserves the original hole-count task. The `hard`
+suite adds tasks that require models to combine multiple visual facts:
+
+- `hole_layout`: distinguish center, horizontal-pair, four-corner, and no-hole layouts
+- `aspect_ratio`: infer the long axis and coarse aspect-ratio bucket
+- `edge_clearance`: reason about which outer edge pair is closest to any hole center
+- `composite_spatial`: combine layout, count, aspect, clearance, and symmetry
+
+Use `--task-suite mixed` to interleave the original basic task with harder
+reasoning tasks in a single JSONL file.
 
 ## Evaluation
 
@@ -81,6 +103,7 @@ The evaluator matches records by `sample_id` and reports:
 - mean absolute error for each numeric parameter
 - overall mean absolute parameter error
 - exact and field-level accuracy for structured vision answers
+- subtype-level exact and field-level accuracy
 
 ## Synthetic Text Roadmap
 

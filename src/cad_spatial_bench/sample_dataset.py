@@ -10,6 +10,8 @@ from typing import Any
 
 from cad_spatial_bench.generators import build_rectangular_plate, export_part_to_step
 from cad_spatial_bench.render import render_plate_top_view
+from cad_spatial_bench.tasks import build_task_gold_answer, build_task_prompt
+from cad_spatial_bench.tasks import select_task_subtype, task_difficulty
 
 
 def sample_plate_params(rng: random.Random) -> dict[str, Any]:
@@ -37,38 +39,35 @@ def assign_split(sample_index: int, seed: int) -> str:
     return "test"
 
 
-def build_gold_answer(parameters: dict[str, Any]) -> dict[str, Any]:
+def build_gold_answer(parameters: dict[str, Any], task_subtype: str = "hole_count") -> dict[str, Any]:
     """Build the structured answer expected from a vision model."""
-    hole_count = int(parameters["hole_count"])
-    return {
-        "part_family": "rectangular_plate",
-        "hole_count": hole_count,
-        "has_holes": hole_count > 0,
-        "primary_symmetry": "x_and_y",
-    }
+    return build_task_gold_answer(parameters, task_subtype)
 
 
-def build_vision_prompt() -> str:
+def build_vision_prompt(task_subtype: str = "hole_count") -> str:
     """Return the default vision-language prompt for this benchmark task."""
-    return (
-        "Look at the rendered CAD image. Return JSON with `part_family`, "
-        "`hole_count`, `has_holes`, and `primary_symmetry`."
-    )
+    return build_task_prompt(task_subtype)
 
 
-def build_record(sample_index: int, rng: random.Random, seed: int) -> dict[str, Any]:
+def build_record(
+    sample_index: int, rng: random.Random, seed: int, task_suite: str = "basic"
+) -> dict[str, Any]:
     """Build one JSONL-ready dataset metadata record."""
     parameters = sample_plate_params(rng)
+    task_subtype = select_task_subtype(sample_index, task_suite)
     return {
         "sample_id": f"plate_{sample_index:06d}",
         "split": assign_split(sample_index, seed),
         "part_family": "rectangular_plate",
+        "task_family": "plate_spatial_reasoning",
+        "task_subtype": task_subtype,
+        "difficulty": task_difficulty(task_subtype),
         "parameters": parameters,
         "target_python_function": "build_rectangular_plate",
         "input_modality": "image_text",
         "output_modality": "structured_json",
-        "prompt": build_vision_prompt(),
-        "gold_answer": build_gold_answer(parameters),
+        "prompt": build_vision_prompt(task_subtype),
+        "gold_answer": build_gold_answer(parameters, task_subtype),
     }
 
 
@@ -105,6 +104,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=Path("outputs/sample_dataset.jsonl"))
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
+        "--task-suite",
+        choices=["basic", "hard", "mixed"],
+        default="basic",
+        help="Task suite to generate. `basic` preserves the original hole-count task.",
+    )
+    parser.add_argument(
         "--render-dir",
         type=Path,
         default=None,
@@ -129,7 +134,10 @@ def main() -> None:
     """Run the dataset sampling CLI."""
     args = parse_args()
     rng = random.Random(args.seed)
-    records = [build_record(index, rng, args.seed) for index in range(args.num_samples)]
+    records = [
+        build_record(index, rng, args.seed, task_suite=args.task_suite)
+        for index in range(args.num_samples)
+    ]
 
     if args.render_dir is not None:
         for record in records:

@@ -40,20 +40,30 @@ Run the JSONL sampling CLI:
 python -m cad_spatial_bench.sample_dataset --num-samples 25 --output outputs/plates.jsonl --seed 42
 ```
 
+Generate the first vision benchmark dataset with deterministic PNG renders:
+
+```powershell
+python -m cad_spatial_bench.sample_dataset --num-samples 25 --output outputs/vision_dataset.jsonl --seed 42 --render-dir outputs/renders
+```
+
 To also export one STEP file per generated sample, pass `--export-step-dir`:
 
 ```powershell
-python -m cad_spatial_bench.sample_dataset --num-samples 25 --output outputs/plates.jsonl --seed 42 --export-step-dir outputs/step
+python -m cad_spatial_bench.sample_dataset --num-samples 25 --output outputs/vision_dataset.jsonl --seed 42 --render-dir outputs/renders --export-step-dir outputs/step
 ```
 
 Each JSONL record includes:
 
 - `sample_id`
+- `split`
 - `part_family`
 - `parameters`
 - `target_python_function`
+- `prompt`
+- `gold_answer`
 
 When `--export-step-dir` is provided, each record also includes `step_file_path`.
+When `--render-dir` is provided, each record also includes `image_path`.
 
 The same seed produces the same records, which makes the benchmark reproducible.
 
@@ -70,6 +80,7 @@ The evaluator matches records by `sample_id` and reports:
 - exact-match accuracy for `part_family`
 - mean absolute error for each numeric parameter
 - overall mean absolute parameter error
+- exact and field-level accuracy for structured vision answers
 
 ## Synthetic Text Roadmap
 

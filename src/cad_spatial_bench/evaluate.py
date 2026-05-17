@@ -59,6 +59,40 @@ def absolute_parameter_errors(
     return errors
 
 
+def answer_from_candidate(candidate: dict[str, Any]) -> dict[str, Any] | None:
+    """Return a candidate structured answer if one is available."""
+    answer = candidate.get("model_answer", candidate.get("gold_answer"))
+
+    if isinstance(answer, str):
+        try:
+            parsed_answer = json.loads(answer)
+        except json.JSONDecodeError:
+            return None
+        return parsed_answer if isinstance(parsed_answer, dict) else None
+
+    return answer if isinstance(answer, dict) else None
+
+
+def structured_answer_scores(
+    ground_truth: dict[str, Any], candidate: dict[str, Any]
+) -> tuple[int, int, bool] | None:
+    """Compare a structured candidate answer against the gold answer."""
+    gold_answer = ground_truth.get("gold_answer")
+    candidate_answer = answer_from_candidate(candidate)
+
+    if not isinstance(gold_answer, dict) or candidate_answer is None:
+        return None
+
+    total_fields = len(gold_answer)
+    correct_fields = 0
+
+    for field_name, expected_value in gold_answer.items():
+        if candidate_answer.get(field_name) == expected_value:
+            correct_fields += 1
+
+    return correct_fields, total_fields, correct_fields == total_fields
+
+
 def evaluate_records(
     ground_truth_records: list[dict[str, Any]], candidate_records: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -72,6 +106,10 @@ def evaluate_records(
 
     part_family_matches = 0
     parameter_errors: dict[str, list[float]] = {}
+    structured_answer_count = 0
+    structured_exact_matches = 0
+    structured_correct_fields = 0
+    structured_total_fields = 0
 
     for sample_id in matched_ids:
         ground_truth = ground_truth_by_id[sample_id]
@@ -82,6 +120,15 @@ def evaluate_records(
 
         for parameter_name, error in absolute_parameter_errors(ground_truth, candidate).items():
             parameter_errors.setdefault(parameter_name, []).append(error)
+
+        structured_scores = structured_answer_scores(ground_truth, candidate)
+        if structured_scores is not None:
+            correct_fields, total_fields, exact_match = structured_scores
+            structured_answer_count += 1
+            structured_correct_fields += correct_fields
+            structured_total_fields += total_fields
+            if exact_match:
+                structured_exact_matches += 1
 
     all_parameter_errors = [
         error for errors_for_parameter in parameter_errors.values() for error in errors_for_parameter
@@ -102,6 +149,14 @@ def evaluate_records(
             name: sum(errors) / len(errors) for name, errors in sorted(parameter_errors.items())
         },
         "mean_absolute_parameter_error": mean_absolute_parameter_error,
+        "structured_answer_count": structured_answer_count,
+        "structured_exact_matches": structured_exact_matches,
+        "structured_exact_accuracy": (
+            structured_exact_matches / structured_answer_count if structured_answer_count else 0.0
+        ),
+        "structured_field_accuracy": (
+            structured_correct_fields / structured_total_fields if structured_total_fields else 0.0
+        ),
     }
 
 
@@ -129,6 +184,12 @@ def print_summary(results: dict[str, Any]) -> None:
 
     print()
     print(f"Mean absolute parameter error: {results['mean_absolute_parameter_error']:.3f}")
+    print()
+    print("Structured answer scoring:")
+    print(f"- Comparable answers: {results['structured_answer_count']}")
+    print(f"- Exact matches:      {results['structured_exact_matches']}")
+    print(f"- Exact accuracy:     {results['structured_exact_accuracy']:.3f}")
+    print(f"- Field accuracy:     {results['structured_field_accuracy']:.3f}")
 
 
 def parse_args() -> argparse.Namespace:

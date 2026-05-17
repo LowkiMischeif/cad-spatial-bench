@@ -21,7 +21,7 @@ env/
 htmlcov/
 
 # Local generated outputs
-outputs/*.jsonl
+outputs/**
 !outputs/.gitkeep
 
 # Editor and OS files

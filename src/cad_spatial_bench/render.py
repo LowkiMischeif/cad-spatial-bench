@@ -12,7 +12,7 @@ import zlib
 from pathlib import Path
 from typing import Any
 
-from cad_spatial_bench.generators import hole_positions
+from cad_spatial_bench.generators import positions_from_parameters
 
 Color = tuple[int, int, int]
 
@@ -23,7 +23,6 @@ def render_plate_top_view(
     """Render a deterministic top-down PNG image for a rectangular plate."""
     length = float(parameters["length_mm"])
     width = float(parameters["width_mm"])
-    hole_count = int(parameters.get("hole_count", 0))
 
     canvas = _new_canvas(image_size, image_size, (245, 247, 250))
     margin = image_size * 0.14
@@ -43,7 +42,7 @@ def render_plate_top_view(
     _draw_rect_outline(canvas, image_size, left, top, right, bottom, (56, 66, 82), thickness=3)
 
     hole_radius_px = max(6, int(round(min(length, width) * 0.06 * scale)))
-    for x_position, y_position in hole_positions(length, width, hole_count):
+    for x_position, y_position in positions_from_parameters(parameters):
         hole_x = int(round(center_x + x_position * scale))
         hole_y = int(round(center_y - y_position * scale))
         _draw_circle(canvas, image_size, hole_x, hole_y, hole_radius_px, (245, 247, 250))

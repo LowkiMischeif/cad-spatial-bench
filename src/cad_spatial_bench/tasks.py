@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from cad_spatial_bench.generators import hole_positions
+from cad_spatial_bench.generators import positions_from_parameters
 
 BASIC_TASK_SUBTYPES = ("hole_count",)
 HARD_TASK_SUBTYPES = ("hole_layout", "aspect_ratio", "edge_clearance", "composite_spatial")
@@ -58,22 +58,24 @@ def build_task_prompt(task_subtype: str) -> str:
     raise ValueError(f"Unknown task subtype: {task_subtype}")
 
 
-def build_task_gold_answer(parameters: dict[str, Any], task_subtype: str) -> dict[str, Any]:
+def build_task_gold_answer(
+    parameters: dict[str, Any], task_subtype: str, part_family: str = "rectangular_plate"
+) -> dict[str, Any]:
     """Build the deterministic structured answer for a task subtype."""
     hole_count = int(parameters["hole_count"])
 
     if task_subtype == "hole_count":
         return {
-            "part_family": "rectangular_plate",
+            "part_family": part_family,
             "hole_count": hole_count,
             "has_holes": hole_count > 0,
-            "primary_symmetry": "x_and_y",
+            "primary_symmetry": primary_symmetry(parameters),
         }
     if task_subtype == "hole_layout":
         return {
             "hole_count": hole_count,
             "hole_pattern": hole_pattern(hole_count),
-            "holes_on_centerlines": holes_on_centerlines(hole_count),
+            "holes_on_centerlines": holes_on_centerlines(parameters),
         }
     if task_subtype == "aspect_ratio":
         return {
@@ -89,12 +91,12 @@ def build_task_gold_answer(parameters: dict[str, Any], task_subtype: str) -> dic
         }
     if task_subtype == "composite_spatial":
         return {
-            "part_family": "rectangular_plate",
+            "part_family": part_family,
             "hole_count": hole_count,
             "hole_pattern": hole_pattern(hole_count),
             "long_axis": long_axis(parameters),
             "closest_edge_pair": closest_edge_pair(parameters),
-            "primary_symmetry": "x_and_y",
+            "primary_symmetry": primary_symmetry(parameters),
         }
 
     raise ValueError(f"Unknown task subtype: {task_subtype}")
@@ -109,6 +111,13 @@ def task_difficulty(task_subtype: str) -> str:
     return "hard"
 
 
+def primary_symmetry(parameters: dict[str, Any]) -> str:
+    """Return exact symmetry for the generated hole layout."""
+    if parameters.get("offset_applied") is True:
+        return "none"
+    return "x_and_y"
+
+
 def hole_pattern(hole_count: int) -> str:
     """Map hole count to a deterministic layout label."""
     if hole_count <= 0:
@@ -120,9 +129,13 @@ def hole_pattern(hole_count: int) -> str:
     return "four_corner"
 
 
-def holes_on_centerlines(hole_count: int) -> bool:
+def holes_on_centerlines(parameters: dict[str, Any]) -> bool:
     """Return whether all holes lie on a plate centerline."""
-    return hole_count in {1, 2}
+    positions = positions_from_parameters(parameters)
+    if not positions:
+        return False
+
+    return all(abs(x_position) < 1e-9 or abs(y_position) < 1e-9 for x_position, y_position in positions)
 
 
 def long_axis(parameters: dict[str, Any]) -> str:
@@ -154,8 +167,7 @@ def closest_edge_pair(parameters: dict[str, Any]) -> str:
     """Return which outer edge pair is closest to any hole center."""
     length = float(parameters["length_mm"])
     width = float(parameters["width_mm"])
-    hole_count = int(parameters.get("hole_count", 0))
-    positions = hole_positions(length, width, hole_count)
+    positions = positions_from_parameters(parameters)
 
     if not positions:
         return "none"

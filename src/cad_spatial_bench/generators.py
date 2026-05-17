@@ -27,16 +27,36 @@ def build_rectangular_plate(parameters: dict[str, Any]):
     length = float(parameters["length_mm"])
     width = float(parameters["width_mm"])
     thickness = float(parameters["thickness_mm"])
-    hole_count = int(parameters.get("hole_count", 0))
 
     plate = Box(length, width, thickness)
     hole_radius = max(1.5, min(length, width) * 0.06)
 
-    for x_position, y_position in hole_positions(length, width, hole_count):
+    for x_position, y_position in positions_from_parameters(parameters):
         hole = Pos(x_position, y_position, 0) * Cylinder(hole_radius, thickness * 2)
         plate = plate - hole
 
     return plate
+
+
+def build_offset_hole_plate(parameters: dict[str, Any]):
+    """Build a rectangular plate whose hole positions may include one offset hole."""
+    return build_rectangular_plate(parameters)
+
+
+def positions_from_parameters(parameters: dict[str, Any]) -> list[tuple[float, float]]:
+    """Return exact hole positions from metadata, falling back to symmetric defaults."""
+    exact_positions = parameters.get("hole_positions")
+    if isinstance(exact_positions, list):
+        return [
+            (float(position["x_mm"]), float(position["y_mm"]))
+            for position in exact_positions
+            if isinstance(position, dict) and "x_mm" in position and "y_mm" in position
+        ]
+
+    length = float(parameters["length_mm"])
+    width = float(parameters["width_mm"])
+    hole_count = int(parameters.get("hole_count", 0))
+    return hole_positions(length, width, hole_count)
 
 
 def hole_positions(length: float, width: float, hole_count: int) -> list[tuple[float, float]]:

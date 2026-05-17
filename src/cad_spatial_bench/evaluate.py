@@ -53,10 +53,15 @@ def absolute_parameter_errors(
 
     for name, expected_value in ground_truth_params.items():
         candidate_value = candidate_params.get(name)
-        if isinstance(expected_value, (int, float)) and isinstance(candidate_value, (int, float)):
+        if is_number(expected_value) and is_number(candidate_value):
             errors[name] = abs(float(expected_value) - float(candidate_value))
 
     return errors
+
+
+def is_number(value: object) -> bool:
+    """Return whether a value should be treated as numeric for parameter error."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
 def answer_from_candidate(candidate: dict[str, Any]) -> dict[str, Any] | None:

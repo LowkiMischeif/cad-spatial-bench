@@ -52,6 +52,12 @@ Generate harder spatial reasoning tasks:
 python -m cad_spatial_bench.sample_dataset --num-samples 100 --output outputs/hard_vision_dataset.jsonl --seed 42 --render-dir outputs/renders --task-suite hard
 ```
 
+Generate the offset-hole plate family:
+
+```powershell
+python -m cad_spatial_bench.sample_dataset --num-samples 100 --output outputs/offset_hole_dataset.jsonl --seed 42 --render-dir outputs/renders --part-family offset_hole_plate --task-suite hard
+```
+
 To also export one STEP file per generated sample, pass `--export-step-dir`:
 
 ```powershell
@@ -75,6 +81,17 @@ When `--export-step-dir` is provided, each record also includes `step_file_path`
 When `--render-dir` is provided, each record also includes `image_path`.
 
 The same seed produces the same records, which makes the benchmark reproducible.
+
+## Part Families
+
+The default `rectangular_plate` family preserves the original symmetric plate
+behavior. The `offset_hole_plate` family starts from the same rectangular plate
+logic but always generates multiple holes. With probability `0.5`, one hole is
+offset by `0.5mm` to `5mm` in one cardinal direction. Exact hole positions are
+stored in each record under `parameters.hole_positions`.
+
+Use `--part-family mixed` to alternate between rectangular plates and
+offset-hole plates.
 
 ## Spatial Reasoning Task Suites
 
